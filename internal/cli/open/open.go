@@ -5,64 +5,34 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"preq/internal/cli/paramutils"
 	"preq/internal/cli/utils"
 	"preq/internal/clientutils"
-	"preq/internal/pkg/client"
-	"preq/internal/systemcodes"
+	"preq/internal/domain/pullrequest"
 	"runtime"
 
 	"github.com/spf13/cobra"
 )
 
 func runCmd(cmd *cobra.Command, args []string) error {
-	cmdArgs := parseArgs(args)
-
-	params := &openCmdParams{}
-	fillDefaultOpenCmdParams(params)
-	fillFlagOpenCmdParams(cmd, params)
-	err := validateFlagOpenCmdParams(params)
+	flags := &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+	c, err := clientutils.ClientFactory{}.DefaultWithFlags(flags)
 	if err != nil {
-		return err
+		fmt.Println("unknown error")
+		os.Exit(123)
 	}
 
-	err = execute(cmdArgs, params)
-	if err != nil {
-		return err
-	}
+	params := newOpenCmdParams()
+	fillFlagOpenCmdParams(params, cmd)
+	fillArgParams(params, args)
 
-	return nil
+	return execute(c, params)
 }
 
-func execute(args *cmdArgs, params *openCmdParams) error {
-	url := fmt.Sprintf("https://bitbucket.org/%s/pull-requests/", params.Repository)
-	if args.ID != "" {
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, args.ID)
-	} else if params.Interactive {
-		cl, err := clientutils.ClientFactory{}.DefaultClient(params.Repository.Provider)
-		if err != nil {
-			return err
-		}
-		r, err := client.NewRepositoryFromOptions(&client.RepositoryOptions{
-			Provider:           client.RepositoryProvider(params.Repository.Provider),
-			FullRepositoryName: params.Repository.Name,
-		})
-		if err != nil {
-			return err
-		}
-		prList, err := cl.GetPullRequests(&client.GetPullRequestsOptions{
-			Repository: r,
-			State:      client.PullRequestState_OPEN,
-		})
-		if err != nil {
-			return err
-		}
-
-		selectedPR := utils.PromptPullRequestSelect(prList)
-		if selectedPR == nil {
-			os.Exit(systemcodes.ErrorCodeGeneric)
-		}
-
-		url = fmt.Sprintf("https://bitbucket.org/%s/pull-requests/%s", params.Repository, selectedPR.ID)
+func execute(c pullrequest.Repository, params *openCmdParams) error {
+	url := c.WebPageList()
+	if params.ID != "" {
+		url = c.WebPage(pullrequest.EntityID(params.ID))
 	}
 
 	if params.PrintOnly {
@@ -84,7 +54,6 @@ func New() *cobra.Command {
 		Run:     utils.RunCommandWrapper(runCmd),
 	}
 
-	cmd.Flags().BoolP("interactive", "i", false, "interactive mode")
 	cmd.Flags().Bool("print", false, "print the pull request URL")
 
 	return cmd

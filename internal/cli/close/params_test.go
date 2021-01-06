@@ -1,7 +1,8 @@
-package decline
+package close
 
 import (
 	"preq/internal/cli/paramutils"
+	"preq/internal/config"
 	"preq/internal/errcodes"
 	"preq/internal/pkg/client"
 	"testing"
@@ -22,7 +23,7 @@ func Test_parseArgs(t *testing.T) {
 	})
 }
 
-func Test_fillDefaultDeclineCmdParams(t *testing.T) {
+func Test_fillDefaultCloseCmdParams(t *testing.T) {
 	t.Run("another test", func(t *testing.T) {
 		old := getRemoteInfo
 		defer func() { getRemoteInfo = old }()
@@ -35,68 +36,78 @@ func Test_fillDefaultDeclineCmdParams(t *testing.T) {
 		}
 
 		params := cmdParams{}
-		fillDefaultDeclineCmdParams(&params)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
-		assert.Equal(t, params.Repository, "owner/repo-name")
+		fillDefaultCloseCmdParams(&params)
+		assert.Equal(t, params.Repository.Provider, client.RepositoryProviderEnum.BITBUCKET)
+		assert.Equal(t, params.Repository.Name, "owner/repo-name")
 	})
 }
 
-func Test_validateFlagDeclineCmdParams(t *testing.T) {
+func Test_validateFlagCloseCmdParams(t *testing.T) {
 	t.Run("no param", func(t *testing.T) {
 		params := &cmdParams{}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, nil, err)
 	})
 
 	t.Run("only repo", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
+			Repository: config.RepositoryParams{
+				Name: "owner/repo-name",
+			},
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
 	})
 
 	t.Run("only provider", func(t *testing.T) {
 		params := &cmdParams{
-			Provider: "provider",
+			Repository: config.RepositoryParams{
+				Provider: "provider",
+			},
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrSomeRepoParamsMissing, err)
 	})
 
 	t.Run("wrong repo", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "wrong",
-			Provider:   "provider",
+			Repository: config.RepositoryParams{
+				Name:     "wrong",
+				Provider: "provider",
+			},
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrRepositoryMustBeInFormOwnerRepo, err)
 	})
 
 	t.Run("wrong provider", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
-			Provider:   "wrong",
+			Repository: config.RepositoryParams{
+				Name:     "owner/repo-name",
+				Provider: "wrong",
+			},
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, errcodes.ErrorRepositoryProviderUnknown, err)
 	})
 
 	t.Run("succeeds with valid repo and provider", func(t *testing.T) {
 		params := &cmdParams{
-			Repository: "owner/repo-name",
-			Provider:   client.RepositoryProviderEnum.BITBUCKET,
+			Repository: config.RepositoryParams{
+				Name:     "owner/repo-name",
+				Provider: client.RepositoryProviderEnum.BITBUCKET,
+			},
 		}
-		err := validateFlagDeclineCmdParams(params)
+		err := validateFlagCloseCmdParams(params)
 		assert.Equal(t, nil, err)
 	})
 }
 
-func Test_fillFlagDeclineCmdParams(t *testing.T) {
+func Test_fillFlagCloseCmdParams(t *testing.T) {
 	t.Run("fills with flag parameters", func(t *testing.T) {
 		repo := "owner/repo"
 		params := cmdParams{}
-		fillFlagDeclineCmdParams(
+		fillFlagCloseCmdParams(
 			&paramutils.MockPreqFlagSet{StringMap: map[string]interface{}{
 				"repository": repo,
 				"provider":   string(client.RepositoryProviderEnum.BITBUCKET),
@@ -104,18 +115,18 @@ func Test_fillFlagDeclineCmdParams(t *testing.T) {
 			&params,
 		)
 
-		assert.Equal(t, params.Repository, repo)
-		assert.Equal(t, params.Provider, client.RepositoryProviderEnum.BITBUCKET)
+		assert.Equal(t, params.Repository.Name, repo)
+		assert.Equal(t, params.Repository.Provider, client.RepositoryProviderEnum.BITBUCKET)
 	})
 
 	t.Run("fills with fallback parameters", func(t *testing.T) {
 		params := cmdParams{}
-		fillFlagDeclineCmdParams(
+		fillFlagCloseCmdParams(
 			&paramutils.MockPreqFlagSet{},
 			&params,
 		)
 
-		assert.Equal(t, params.Repository, "")
-		assert.Equal(t, params.Provider.IsValid(), false)
+		assert.Equal(t, params.Repository.Name, "")
+		assert.Equal(t, params.Repository.Provider.IsValid(), false)
 	})
 }

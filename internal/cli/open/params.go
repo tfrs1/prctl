@@ -7,37 +7,23 @@ import (
 )
 
 type openCmdParams struct {
-	Repository  paramutils.RepositoryParams
-	PrintOnly   bool
-	Interactive bool
+	ID        string
+	PrintOnly bool
 }
 
-type cmdArgs struct {
-	ID string
+func newOpenCmdParams() *openCmdParams {
+	return &openCmdParams{ID: "", PrintOnly: false}
 }
 
-func parseArgs(args []string) *cmdArgs {
-	return &cmdArgs{ID: paramutils.ParseIDArg(args)}
+func fillArgParams(params *openCmdParams, args []string) {
+	params.ID = paramutils.ParseIDArg(args)
 }
 
-func fillDefaultOpenCmdParams(params *openCmdParams) {
-	params.PrintOnly = false
-	params.Interactive = false
-	paramutils.FillDefaultRepositoryParams(&params.Repository)
-}
-
-func fillFlagOpenCmdParams(cmd *cobra.Command, params *openCmdParams) {
+func fillFlagOpenCmdParams(params *openCmdParams, cmd *cobra.Command) {
 	var (
-		flags       = &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
-		printOnly   = flags.GetBoolOrDefault("print", false)
-		interactive = flags.GetBoolOrDefault("interactive", false)
+		flags     = &paramutils.PFlagSetWrapper{Flags: cmd.Flags()}
+		printOnly = flags.GetBoolOrDefault("print", false)
 	)
 
-	paramutils.FillFlagRepositoryParams(flags, &params.Repository)
 	params.PrintOnly = printOnly
-	params.Interactive = interactive
-}
-
-func validateFlagOpenCmdParams(params *openCmdParams) error {
-	return paramutils.ValidateFlagRepositoryParams(&params.Repository)
 }
